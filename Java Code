@@ -1,0 +1,691 @@
+import java.sql.*;
+import java.util.Scanner;
+
+/**
+ * Online Tutoring System Application
+ * @author Folasewa Ofurune
+ * @date March 16, 2026
+ */
+public class TutoringSystemApp{
+    private Connection conn;
+    private Scanner scanner;
+
+    public void connect() {
+        try {
+            Class.forName("org.sqlite.JDBC");
+            conn = DriverManager.getConnection("jdbc:sqlite:tutoring.db");
+            System.out.println("Connected to database!");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        scanner = new Scanner(System.in);
+    }
+
+    
+    public void close() {
+        try {
+            if (conn != null) conn.close();
+        } catch (SQLException e) { e.printStackTrace(); }
+        scanner.close();
+    }
+
+    
+    public void createTables()
+    {
+        try
+        {
+            Statement stmt = conn.createStatement();
+
+            // Student table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Student (" +
+                         "student_id INT PRIMARY KEY, name VARCHAR(100), email VARCHAR(100), contact VARCHAR(20))");
+
+            // Tutor table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Tutor (" +
+                         "tutor_id INT PRIMARY KEY, name VARCHAR(100), expertise VARCHAR(100), contact VARCHAR(20), rating DECIMAL(2,1))");
+
+            // Course table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Course (" +
+                         "course_id INT PRIMARY KEY, title VARCHAR(100), description TEXT, tutor_id INT," +
+                         "FOREIGN KEY(tutor_id) REFERENCES Tutor(tutor_id))");
+
+            // Lesson table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Lesson (" +
+                         "lesson_id INT PRIMARY KEY, title VARCHAR(100), content TEXT, course_id INT," +
+                         "FOREIGN KEY(course_id) REFERENCES Course(course_id))");
+
+            // Enrollment table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Enrollment (" +
+                         "enrollment_id INT PRIMARY KEY, student_id INT, course_id INT, enrollment_date DATE," +
+                         "FOREIGN KEY(student_id) REFERENCES Student(student_id)," +
+                         "FOREIGN KEY(course_id) REFERENCES Course(course_id))");
+
+            // Feedback table
+            stmt.execute("CREATE TABLE IF NOT EXISTS Feedback (" +
+                         "feedback_id INT PRIMARY KEY, student_id INT, lesson_id INT, tutor_id INT, rating INT, comments TEXT," +
+                         "FOREIGN KEY(student_id) REFERENCES Student(student_id)," +
+                         "FOREIGN KEY(lesson_id) REFERENCES Lesson(lesson_id)," +
+                         "FOREIGN KEY(tutor_id) REFERENCES Tutor(tutor_id))");
+
+            System.out.println("Tables created successfully!");
+            stmt.close();
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+    
+    public void insertData() 
+    {
+        try {
+            Statement stmt = conn.createStatement();
+    
+            // STUDENTS
+            stmt.executeUpdate("INSERT INTO Student VALUES " +
+                    "(1, 'Folasewa Ofurune', 'sewa@mail.com', '5061112222')," +
+                    "(2, 'Precious Oluyide', 'precious@mail.com', '5063334444')");
+    
+            // TUTORS
+            stmt.executeUpdate("INSERT INTO Tutor VALUES " +
+                    "(1, 'Dr. Ofurune', 'Mathematics', '5065556666', 4.8)," +
+                    "(2, 'Praise Smith', 'Computer Science', '5067778888', 4.6)");
+    
+            // COURSES
+            stmt.executeUpdate("INSERT INTO Course VALUES " +
+                    "(1, 'Calculus I', 'Introduction to calculus', 1)," +
+                    "(2, 'Java Programming', 'Learn Java basics', 2)");
+    
+            // LESSONS
+            stmt.executeUpdate("INSERT INTO Lesson VALUES " +
+                    "(1, 'Limits', 'Understanding limits', 1)," +
+                    "(2, 'Derivatives', 'Introduction to derivatives', 1)");
+    
+            // ENROLLMENTS
+            stmt.executeUpdate("INSERT INTO Enrollment VALUES " +
+                    "(1, 1, 1, '2026-03-15')," +
+                    "(2, 2, 2, '2026-03-25')");
+    
+            // FEEDBACK (fixed lesson_id = 2 instead of 3)
+            stmt.executeUpdate("INSERT INTO Feedback VALUES " +
+                    "(1, 1, 1, 1, 5, 'Explained limits very well')," +
+                    "(2, 2, 2, 2, 4, 'Helpful lesson on Java')");
+    
+            System.out.println("Default data inserted successfully!");
+    
+            stmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+   
+    public void mainMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Online Tutoring System ---");
+            System.out.println("1. Manage Students");
+            System.out.println("2. Manage Tutors");
+            System.out.println("3. Manage Courses");
+            System.out.println("4. Manage Lessons");
+            System.out.println("5. Manage Enrollments");
+            System.out.println("6. Manage Feedback");
+            System.out.println("7. Exit");
+            System.out.println("8. Print All Data");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: studentMenu(); break;
+                case 2: tutorMenu(); break;
+                case 3: courseMenu(); break;
+                case 4: lessonMenu(); break;
+                case 5: enrollmentMenu(); break;
+                case 6: feedbackMenu(); break;
+                case 7: System.out.println("Exiting..."); break;
+                case 8: printAllData(); break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 7);
+    }
+
+
+    private void studentMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Student Menu ---");
+            System.out.println("1. Add Student");
+            System.out.println("2. View Students");
+            System.out.println("3. Update Student");
+            System.out.println("4. Delete Student");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addStudent(); break;
+                case 2: viewStudents(); break;
+                case 3: updateStudent(); break;
+                case 4: deleteStudent(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+        private void addStudent() {
+        try {
+            System.out.print("Enter student ID: "); 
+            int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter name: "); 
+            String name = scanner.nextLine();
+            System.out.print("Enter email: "); 
+            String email = scanner.nextLine();
+            System.out.print("Enter contact: "); 
+            String contact = scanner.nextLine();
+    
+        
+            System.out.println("Adding student -> " + id + ", " + name + ", " + email + ", " + contact);
+    
+            String sql = "INSERT INTO Student (student_id, name, email, contact) VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.setString(2, name);
+            pstmt.setString(3, email);
+            pstmt.setString(4, contact);
+    
+            int rows = pstmt.executeUpdate(); 
+            System.out.println("Student added successfully!");
+             //show current students
+            System.out.println("\n--- Current Students ---");
+            viewStudents();
+    
+        } catch (SQLException e) {
+            System.out.println("ERROR: Could not add student.");
+            e.printStackTrace();
+        }
+    }
+
+    private void viewStudents() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Student");
+    
+            boolean hasStudents = false;
+            while(rs.next()) {
+                hasStudents = true;
+                System.out.println(rs.getInt("student_id") + " | " +
+                                   rs.getString("name") + " | " +
+                                   rs.getString("email") + " | " +
+                                   rs.getString("contact"));
+            }
+    
+            if (!hasStudents) {
+                System.out.println("No students found in the database.");
+            }
+    
+        } catch (SQLException e) {
+            System.out.println("ERROR: Could not retrieve students.");
+            e.printStackTrace();
+        }
+    }    
+
+    private void updateStudent() {
+        try {
+            System.out.print("Enter student ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new name: "); String name = scanner.nextLine();
+            System.out.print("Enter new email: "); String email = scanner.nextLine();
+            System.out.print("Enter new contact: "); String contact = scanner.nextLine();
+
+            String sql = "UPDATE Student SET name=?, email=?, contact=? WHERE student_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name); pstmt.setString(2, email);
+            pstmt.setString(3, contact); pstmt.setInt(4, id);
+            pstmt.executeUpdate();
+            System.out.println("Student updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteStudent() {
+        try {
+            System.out.print("Enter student ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Student WHERE student_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+            System.out.println("Student deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    
+    private void tutorMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Tutor Menu ---");
+            System.out.println("1. Add Tutor");
+            System.out.println("2. View Tutors");
+            System.out.println("3. Update Tutor");
+            System.out.println("4. Delete Tutor");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addTutor(); break;
+                case 2: viewTutors(); break;
+                case 3: updateTutor(); break;
+                case 4: deleteTutor(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private void addTutor() {
+        try {
+            System.out.print("Enter tutor ID: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter name: "); String name = scanner.nextLine();
+            System.out.print("Enter expertise: "); String expertise = scanner.nextLine();
+            System.out.print("Enter contact: "); String contact = scanner.nextLine();
+            System.out.print("Enter rating: "); double rating = scanner.nextDouble(); scanner.nextLine();
+
+            String sql = "INSERT INTO Tutor VALUES (?, ?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.setString(2, name);
+            pstmt.setString(3, expertise); pstmt.setString(4, contact);
+            pstmt.setDouble(5, rating);
+            pstmt.executeUpdate();
+            System.out.println("Tutor added successfully!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void viewTutors() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Tutor");
+            while(rs.next()) {
+                System.out.println(rs.getInt("tutor_id") + " | " +
+                                   rs.getString("name") + " | " +
+                                   rs.getString("expertise") + " | " +
+                                   rs.getString("contact") + " | " +
+                                   rs.getDouble("rating"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void updateTutor() {
+        try {
+            System.out.print("Enter tutor ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new name: "); String name = scanner.nextLine();
+            System.out.print("Enter new expertise: "); String expertise = scanner.nextLine();
+            System.out.print("Enter new contact: "); String contact = scanner.nextLine();
+            System.out.print("Enter new rating: "); double rating = scanner.nextDouble(); scanner.nextLine();
+
+            String sql = "UPDATE Tutor SET name=?, expertise=?, contact=?, rating=? WHERE tutor_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, name); pstmt.setString(2, expertise);
+            pstmt.setString(3, contact); pstmt.setDouble(4, rating);
+            pstmt.setInt(5, id);
+            pstmt.executeUpdate();
+            System.out.println("Tutor updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteTutor() {
+        try {
+            System.out.print("Enter tutor ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Tutor WHERE tutor_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id);
+            pstmt.executeUpdate();
+            System.out.println("Tutor deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    
+    private void courseMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Course Menu ---");
+            System.out.println("1. Add Course");
+            System.out.println("2. View Courses");
+            System.out.println("3. Update Course");
+            System.out.println("4. Delete Course");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addCourse(); break;
+                case 2: viewCourses(); break;
+                case 3: updateCourse(); break;
+                case 4: deleteCourse(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private void addCourse() {
+        try {
+            System.out.print("Enter course ID: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter title: "); String title = scanner.nextLine();
+            System.out.print("Enter description: "); String desc = scanner.nextLine();
+            System.out.print("Enter tutor ID: "); int tutorId = scanner.nextInt(); scanner.nextLine();
+
+            String sql = "INSERT INTO Course VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.setString(2, title);
+            pstmt.setString(3, desc); pstmt.setInt(4, tutorId);
+            pstmt.executeUpdate();
+            System.out.println("Course added successfully!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void viewCourses() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Course");
+            while(rs.next()) {
+                System.out.println(rs.getInt("course_id") + " | " +
+                                   rs.getString("title") + " | " +
+                                   rs.getString("description") + " | " +
+                                   rs.getInt("tutor_id"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void updateCourse() {
+        try {
+            System.out.print("Enter course ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new title: "); String title = scanner.nextLine();
+            System.out.print("Enter new description: "); String desc = scanner.nextLine();
+            System.out.print("Enter new tutor ID: "); int tutorId = scanner.nextInt(); scanner.nextLine();
+
+            String sql = "UPDATE Course SET title=?, description=?, tutor_id=? WHERE course_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, title); pstmt.setString(2, desc); pstmt.setInt(3, tutorId); pstmt.setInt(4, id);
+            pstmt.executeUpdate();
+            System.out.println("Course updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteCourse() {
+        try {
+            System.out.print("Enter course ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Course WHERE course_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.executeUpdate();
+            System.out.println("Course deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+
+    private void lessonMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Lesson Menu ---");
+            System.out.println("1. Add Lesson");
+            System.out.println("2. View Lessons");
+            System.out.println("3. Update Lesson");
+            System.out.println("4. Delete Lesson");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addLesson(); break;
+                case 2: viewLessons(); break;
+                case 3: updateLesson(); break;
+                case 4: deleteLesson(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private void addLesson() {
+        try {
+            System.out.print("Enter lesson ID: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter title: "); String title = scanner.nextLine();
+            System.out.print("Enter content: "); String content = scanner.nextLine();
+            System.out.print("Enter course ID: "); int courseId = scanner.nextInt(); scanner.nextLine();
+
+            String sql = "INSERT INTO Lesson VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.setString(2, title);
+            pstmt.setString(3, content); pstmt.setInt(4, courseId);
+            pstmt.executeUpdate();
+            System.out.println("Lesson added successfully!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void viewLessons() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Lesson");
+            while(rs.next()) {
+                System.out.println(rs.getInt("lesson_id") + " | " +
+                                   rs.getString("title") + " | " +
+                                   rs.getString("content") + " | " +
+                                   rs.getInt("course_id"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void updateLesson() {
+        try {
+            System.out.print("Enter lesson ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new title: "); String title = scanner.nextLine();
+            System.out.print("Enter new content: "); String content = scanner.nextLine();
+            System.out.print("Enter new course ID: "); int courseId = scanner.nextInt(); scanner.nextLine();
+
+            String sql = "UPDATE Lesson SET title=?, content=?, course_id=? WHERE lesson_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, title); pstmt.setString(2, content); pstmt.setInt(3, courseId); pstmt.setInt(4, id);
+            pstmt.executeUpdate();
+            System.out.println("Lesson updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteLesson() {
+        try {
+            System.out.print("Enter lesson ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Lesson WHERE lesson_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.executeUpdate();
+            System.out.println("Lesson deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+   
+    private void enrollmentMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Enrollment Menu ---");
+            System.out.println("1. Add Enrollment");
+            System.out.println("2. View Enrollments");
+            System.out.println("3. Update Enrollment");
+            System.out.println("4. Delete Enrollment");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addEnrollment(); break;
+                case 2: viewEnrollments(); break;
+                case 3: updateEnrollment(); break;
+                case 4: deleteEnrollment(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private void addEnrollment() {
+        try {
+            System.out.print("Enter enrollment ID: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter student ID: "); int studentId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter course ID: "); int courseId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter enrollment date (YYYY-MM-DD): "); String date = scanner.nextLine();
+
+            String sql = "INSERT INTO Enrollment VALUES (?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.setInt(2, studentId);
+            pstmt.setInt(3, courseId); pstmt.setString(4, date);
+            pstmt.executeUpdate();
+            System.out.println("Enrollment added!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void viewEnrollments() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Enrollment");
+            while(rs.next()) {
+                System.out.println(rs.getInt("enrollment_id") + " | " +
+                                   rs.getInt("student_id") + " | " +
+                                   rs.getInt("course_id") + " | " +
+                                   rs.getString("enrollment_date"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void updateEnrollment() {
+        try {
+            System.out.print("Enter enrollment ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new student ID: "); int studentId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new course ID: "); int courseId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new enrollment date (YYYY-MM-DD): "); String date = scanner.nextLine();
+
+            String sql = "UPDATE Enrollment SET student_id=?, course_id=?, enrollment_date=? WHERE enrollment_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, studentId); pstmt.setInt(2, courseId);
+            pstmt.setString(3, date); pstmt.setInt(4, id);
+            pstmt.executeUpdate();
+            System.out.println("Enrollment updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteEnrollment() {
+        try {
+            System.out.print("Enter enrollment ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Enrollment WHERE enrollment_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.executeUpdate();
+            System.out.println("Enrollment deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    
+    private void feedbackMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Feedback Menu ---");
+            System.out.println("1. Add Feedback");
+            System.out.println("2. View Feedback");
+            System.out.println("3. Update Feedback");
+            System.out.println("4. Delete Feedback");
+            System.out.println("5. Back to Main Menu");
+            System.out.print("Choose an option: ");
+            choice = scanner.nextInt(); scanner.nextLine();
+
+            switch (choice) {
+                case 1: addFeedback(); break;
+                case 2: viewFeedback(); break;
+                case 3: updateFeedback(); break;
+                case 4: deleteFeedback(); break;
+                case 5: break;
+                default: System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private void addFeedback() {
+        try {
+            System.out.print("Enter feedback ID: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter student ID: "); int studentId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter lesson ID: "); int lessonId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter tutor ID: "); int tutorId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter rating (1-5): "); int rating = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter comments: "); String comments = scanner.nextLine();
+
+            String sql = "INSERT INTO Feedback VALUES (?, ?, ?, ?, ?, ?)";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.setInt(2, studentId);
+            pstmt.setInt(3, lessonId); pstmt.setInt(4, tutorId);
+            pstmt.setInt(5, rating); pstmt.setString(6, comments);
+            pstmt.executeUpdate();
+            System.out.println("Feedback added!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void viewFeedback() {
+        try {
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM Feedback");
+            while(rs.next()) {
+                System.out.println(rs.getInt("feedback_id") + " | " +
+                                   rs.getInt("student_id") + " | " +
+                                   rs.getInt("lesson_id") + " | " +
+                                   rs.getInt("tutor_id") + " | " +
+                                   rs.getInt("rating") + " | " +
+                                   rs.getString("comments"));
+            }
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void updateFeedback() {
+        try {
+            System.out.print("Enter feedback ID to update: "); int id = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new student ID: "); int studentId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new lesson ID: "); int lessonId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new tutor ID: "); int tutorId = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new rating (1-5): "); int rating = scanner.nextInt(); scanner.nextLine();
+            System.out.print("Enter new comments: "); String comments = scanner.nextLine();
+
+            String sql = "UPDATE Feedback SET student_id=?, lesson_id=?, tutor_id=?, rating=?, comments=? WHERE feedback_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, studentId); pstmt.setInt(2, lessonId); pstmt.setInt(3, tutorId);
+            pstmt.setInt(4, rating); pstmt.setString(5, comments); pstmt.setInt(6, id);
+            pstmt.executeUpdate();
+            System.out.println("Feedback updated!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    private void deleteFeedback() {
+        try {
+            System.out.print("Enter feedback ID to delete: "); int id = scanner.nextInt(); scanner.nextLine();
+            String sql = "DELETE FROM Feedback WHERE feedback_id=?";
+            PreparedStatement pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, id); pstmt.executeUpdate();
+            System.out.println("Feedback deleted!");
+        } catch (SQLException e) { e.printStackTrace(); }
+    }
+
+    public void printAllData() 
+    {
+        System.out.println("\n--- ALL DATA IN DATABASE ---");
+    
+        System.out.println("\nStudents:");
+        viewStudents();
+    
+        System.out.println("\nTutors:");
+        viewTutors();
+    
+        System.out.println("\nCourses:");
+        viewCourses();
+    
+        System.out.println("\nLessons:");
+        viewLessons();
+    
+        System.out.println("\nEnrollments:");
+        viewEnrollments();
+    
+        System.out.println("\nFeedback:");
+        viewFeedback();
+    }
+    public static void main(String[] args) {
+        TutoringSystemApp app = new TutoringSystemApp();
+        app.connect();
+        app.createTables();
+        app.insertData();
+        app.mainMenu();
+        app.close();
+    }
+}
